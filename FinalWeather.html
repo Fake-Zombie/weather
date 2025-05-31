@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather App</title>
+  <style>
+    /* Body style: font, background gradient, layout, and text color */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      /* Background color when page loads or no data */
+      background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
+      margin: 50px;
+      transition: background-color 1s ease-in-out;
+      overflow-x: hidden;
+      color: #222;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+    }
+
+    /* Main container for weather info with semi-transparent background */
+    .weather-container {
+      padding: 20px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.3);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+      display: inline-block;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #222;
+      min-width: 280px;
+      margin-bottom: 20px;
+    }
+
+    /* Styling input box and button */
+    input,
+    button {
+      padding: 10px;
+      margin: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    /* Button color and hover effect */
+    button {
+      cursor: pointer;
+      background-color: #0288d1;
+      color: white;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #026ca0;
+    }
+
+    /* Container for current weather info stats */
+    .weather-info {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    /* Individual stat box styling */
+    .weather-info div {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 10px;
+      padding: 12px 18px;
+      min-width: 110px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      color: #333;
+      font-size: 0.95rem;
+      user-select: none;
+    }
+
+    /* Bold label inside weather info */
+    .weather-info div strong {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    /* Container for the 5-day forecast cards */
+    .forecast-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Individual forecast card style */
+    .forecast-card {
+      background: rgba(245, 242, 242, 0.5);
+      border-radius: 10px;
+      padding: 12px 18px;
+      width: 110px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      color: #333;
+      font-size: 0.9rem;
+      text-align: center;
+      user-select: none;
+      /* Removed animation, cards are fully visible */
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Title inside each forecast card */
+    .forecast-card h4 {
+      margin: 6px 0 10px;
+      font-weight: 600;
+    }
+
+    /* Weather icon inside forecast card */
+    .forecast-card img {
+      width: 50px;
+      height: 50px;
+    }
+
+    /* Temperature text inside forecast card */
+    .forecast-temp {
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* Outfit suggestion text box below forecast */
+    .outfit-suggestion {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      font-size: 1.1rem;
+      color: #fff;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center; /* Center the outfit suggestion text */
+    }
+
+    /* Responsive design for smaller screens */
+    @media (max-width: 480px) {
+      .weather-info,
+      .forecast-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .forecast-card,
+      .weather-info div {
+        width: 90%;
+      }
+
+      input,
+      button {
+        width: 90%;
+      }
+
+      .weather-container {
+        margin: 0 auto;
+        width: 95%;
+      }
+
+      h1, h3 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Main container for input and weather data -->
+  <div class="weather-container">
+    <h1>Weather Forecast</h1>
+
+    <!-- City input -->
+    <input type="text" id="city" aria-label="City name" placeholder="Enter city name" />
+    <!-- Button to fetch weather -->
+    <button id="getWeatherBtn">Get Weather</button>
+
+    <!-- Div to show current weather info -->
+    <div id="weather-data"></div>
+
+    <h3>5-Day Forecast</h3>
+    <!-- Container for forecast cards -->
+    <div id="forecast-container" class="forecast-container"></div>
+  </div>
+
+  <!-- Outfit suggestion message -->
+  <div id="outfit-suggestion" class="outfit-suggestion"></div>
+
+  <script>
+    // API key for OpenWeatherMap
+    const apiKey = "749642f1500dfcf9d3a5c892a63d7fe8";
+
+    // Add event listeners: click button or press Enter key
+    document.getElementById("getWeatherBtn").addEventListener("click", getWeather);
+    document.getElementById("city").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") getWeather();
+    });
+
+    // Main function to get weather and forecast
+    async function getWeather() {
+      const city = document.getElementById("city").value.trim();
+      const weatherDataDiv = document.getElementById("weather-data");
+      const forecastContainer = document.getElementById("forecast-container");
+      const outfitDiv = document.getElementById("outfit-suggestion");
+
+      // Check if city input is empty
+      if (!city) {
+        alert("Please enter a city name.");
+        return;
+      }
+
+      // Show loading messages while fetching data
+      weatherDataDiv.innerHTML = `<p>Loading current weather...</p>`;
+      forecastContainer.innerHTML = `<p>Loading forecast...</p>`;
+      outfitDiv.innerHTML = "";
+
+      try {
+        // Fetch current weather data
+        const currentUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        const currentRes = await fetch(currentUrl);
+        const currentData = await currentRes.json();
+
+        // If city not found or error, show message and reset background
+        if (currentData.cod !== 200) {
+          weatherDataDiv.innerHTML = `<p>${currentData.message}</p>`;
+          forecastContainer.innerHTML = "";
+          outfitDiv.innerHTML = "";
+          document.body.style.background = "linear-gradient(135deg, #74ebd5 0%, #9face6 100%)"; // fallback background
+          return;
+        }
+
+        // Convert sunrise and sunset timestamps to readable times
+        const sunriseTime = new Date(currentData.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const sunsetTime = new Date(currentData.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Show current weather data on page
+        weatherDataDiv.innerHTML = `
+          <h2>${currentData.name}, ${currentData.sys.country}</h2>
+          <p style="text-transform: capitalize;">
+            <img src="https://openweathermap.org/img/wn/${currentData.weather[0].icon}.png" alt="${currentData.weather[0].description}" style="vertical-align: middle;" />
+            ${currentData.weather[0].description}
+          </p>
+          <div class="weather-info">
+            <div><strong>Temperature:</strong> ${currentData.main.temp} °C</div>
+            <div><strong>Humidity:</strong> ${currentData.main.humidity} %</div>
+            <div><strong>Wind Speed:</strong> ${currentData.wind.speed} m/s</div>
+            <div><strong>Sunrise:</strong> ${sunriseTime}</div>
+            <div><strong>Sunset:</strong> ${sunsetTime}</div>
+          </div>
+        `;
+
+        // Change background color based on weather and day/night
+        setBackgroundColor(currentData.weather[0].main.toLowerCase(), currentData);
+
+        // Show outfit suggestion based on temperature and weather condition
+        const outfitText = getOutfitSuggestion(currentData.main.temp, currentData.weather[0].main.toLowerCase());
+        outfitDiv.textContent = outfitText;
+
+        // Fetch 5-day forecast data
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+
+        // If forecast data not available, show message
+        if (forecastData.cod !== "200") {
+          forecastContainer.innerHTML = `<p>Forecast not available.</p>`;
+          return;
+        }
+
+        // Process forecast data to group by day and get min/max temps and icons
+        const dailyForecasts = processForecastData(forecastData.list);
+
+        // Display forecast cards for 5 days
+        forecastContainer.innerHTML = dailyForecasts.map(day => `
+          <div class="forecast-card">
+            <h4>${day.date}</h4>
+            <img src="https://openweathermap.org/img/wn/${day.icon}@2x.png" alt="${day.description}" title="${day.description}" />
+            <div class="forecast-temp">${day.temp_min}° / ${day.temp_max}°C</div>
+          </div>
+        `).join("");
+      } catch (error) {
+        // Show alert on fetch failure and reset UI
+        alert("Failed to fetch weather data.");
+        weatherDataDiv.innerHTML = "";
+        forecastContainer.innerHTML = "";
+        outfitDiv.innerHTML = "";
+        document.body.style.background = "linear-gradient(135deg, #74ebd5 0%, #9face6 100%)"; // fallback background
+      }
+    }
+
+    // Return outfit suggestion based on temperature and condition
+    function getOutfitSuggestion(temp, condition) {
+      if (temp >= 25) {
+        return "☀️ It's hot outside! Wear light clothes like shorts, t-shirts, and sunglasses.";
+      } else if (temp >= 15) {
+        if (condition.includes("rain")) {
+          return "🌧️ Cool and rainy — grab a waterproof jacket and umbrella!";
+        }
+        return "🌤️ Mild weather — a light jacket or sweater is perfect.";
+      } else if (temp >= 5) {
+        return "🧣 Cool weather! Wear a warm jacket and maybe a scarf.";
+      } else {
+        return "❄️ It's cold! Bundle up with a heavy coat, gloves, and a hat.";
+      }
+    }
+
+    // Process forecast list to group by day with min/max temps and most frequent icon
+    function processForecastData(list) {
+      const days = {};
+
+      list.forEach(item => {
+        const date = item.dt_txt.split(" ")[0]; // Get date part
+
+        if (!days[date]) {
+          // Initialize day's data
+          days[date] = {
+            temp_min: item.main.temp_min,
+            temp_max: item.main.temp_max,
+            icon: item.weather[0].icon,
+            description: item.weather[0].description,
+            count: 1,
+            iconCount: { [item.weather[0].icon]: 1 }
+          };
+        } else {
+          // Update min/max temp and icon counts
+          days[date].temp_min = Math.min(days[date].temp_min, item.main.temp_min);
+          days[date].temp_max = Math.max(days[date].temp_max, item.main.temp_max);
+          days[date].count++;
+          days[date].iconCount[item.weather[0].icon] = (days[date].iconCount[item.weather[0].icon] || 0) + 1;
+        }
+      });
+
+      // Prepare final array of forecast objects for next 5 days
+      return Object.keys(days).slice(0, 5).map(date => {
+        const day = days[date];
+        // Find most frequent icon for the day
+        const frequentIcon = Object.entries(day.iconCount).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
+        const dateObj = new Date(date);
+        const options = { weekday: 'short', day: 'numeric', month: 'short' };
+        return {
+          date: dateObj.toLocaleDateString(undefined, options),
+          temp_min: Math.round(day.temp_min),
+          temp_max: Math.round(day.temp_max),
+          icon: frequentIcon,
+          description: day.description
+        };
+      });
+    }
+
+    // Set background color depending on weather condition and day/night
+    function setBackgroundColor(condition, data) {
+      const currentTime = data.dt * 1000;
+      const sunrise = data.sys.sunrise * 1000;
+      const sunset = data.sys.sunset * 1000;
+      const isDay = currentTime >= sunrise && currentTime < sunset;
+
+      // Background colors for different weather during day and night
+      const bgColors = {
+        day: {
+          clear: "#87ceeb",
+          clouds: "#b0c4de",
+          rain: "#576f7f",
+          drizzle: "#839ca8",
+          thunderstorm: "#3e4f5a",
+          snow: "#a9cbd9",
+          mist: "#cfd8dc",
+          haze: "#cfd8dc",
+          default: "#87ceeb"
+        },
+        night: {
+          clear: "#0b1d51",
+          clouds: "#434a5e",
+          rain: "#2f3e4e",
+          drizzle: "#3a4758",
+          thunderstorm: "#222b35",
+          snow: "#4f5a6a",
+          mist: "#5a616c",
+          haze: "#5a616c",
+          default: "#0b1d51"
+        }
+      };
+
+      // Determine main condition category for background
+      let basicCond = "default";
+      if (condition.includes("clear")) basicCond = "clear";
+      else if (condition.includes("cloud")) basicCond = "clouds";
+      else if (condition.includes("rain")) basicCond = "rain";
+      else if (condition.includes("drizzle")) basicCond = "drizzle";
+      else if (condition.includes("thunderstorm")) basicCond = "thunderstorm";
+      else if (condition.includes("snow")) basicCond = "snow";
+      else if (condition.includes("mist") || condition.includes("fog") || condition.includes("haze")) basicCond = "mist";
+
+      // Set the body's background color
+      document.body.style.background = isDay ? bgColors.day[basicCond] : bgColors.night[basicCond];
+    }
+  </script>
+</body>
+</html>
